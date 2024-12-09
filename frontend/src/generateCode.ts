@@ -37,6 +37,7 @@ export function generateCode(
   });
 
   ws.addEventListener("message", async (event: MessageEvent) => {
+    console.log("Received message", event.data);
     const response = JSON.parse(event.data) as WebSocketResponse;
     if (response.type === "chunk") {
       onChange(response.value, response.variantIndex);

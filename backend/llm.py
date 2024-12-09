@@ -7,6 +7,8 @@ from openai.types.chat import ChatCompletionMessageParam, ChatCompletionChunk
 from config import IS_DEBUG_ENABLED
 from debug.DebugFileWriter import DebugFileWriter
 from image_processing.utils import process_image
+from langsmith.wrappers import wrap_openai
+from langsmith import traceable
 
 from utils import pprint_prompt
 
@@ -24,6 +26,7 @@ class Llm(Enum):
 
 
 # Will throw errors if you send a garbage string
+
 def convert_frontend_str_to_llm(frontend_str: str) -> Llm:
     if frontend_str == "gpt_4_vision":
         return Llm.GPT_4_VISION
@@ -32,7 +35,7 @@ def convert_frontend_str_to_llm(frontend_str: str) -> Llm:
     else:
         return Llm(frontend_str)
 
-
+@traceable
 async def stream_openai_response(
     messages: List[ChatCompletionMessageParam],
     api_key: str,
@@ -40,7 +43,7 @@ async def stream_openai_response(
     callback: Callable[[str], Awaitable[None]],
     model: Llm,
 ) -> str:
-    client = AsyncOpenAI(api_key=api_key, base_url=base_url)
+    client = wrap_openai(AsyncOpenAI(api_key=api_key, base_url=base_url))
 
     # Base parameters
     params = {
@@ -72,6 +75,17 @@ async def stream_openai_response(
             content = chunk.choices[0].delta.content or ""
             full_response += content
             await callback(content)
+    
+#     result = await client.chat.completions.create(
+#     model=model.value,
+#     messages=messages,
+#     stream=False,  # Disable streaming to get token usage
+#     timeout=600,
+#     temperature=0.0,
+#     max_tokens=4096 if model in [
+#         Llm.GPT_4_VISION, Llm.GPT_4_TURBO_2024_04_09, Llm.GPT_4O_2024_05_13
+#     ] else None,
+# )
 
     await client.close()
 
